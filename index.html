@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReqPOOL Software Estimation Manager</title>
+<style>
+  :root {
+    --navy: #0f2a43;
+    --navy-light: #1c4468;
+    --accent: #0e7c86;
+    --accent-soft: #e6f3f4;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #dde4ec;
+    --text: #22303e;
+    --muted: #6b7a8c;
+    --ok: #1d8a4e;
+    --err: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 1.1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: .02em; }
+  header .sub { font-size: .8rem; opacity: .75; }
+  .badge {
+    font-size: .78rem;
+    padding: .3rem .7rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .badge.ok { background: rgba(46, 204, 113, .18); color: #7dedb0; border: 1px solid rgba(46,204,113,.4); }
+  .badge.fail { background: rgba(192, 57, 43, .25); color: #ffb3a7; border: 1px solid rgba(192,57,43,.5); }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .card h2 {
+    font-size: .95rem;
+    color: var(--navy);
+    margin-bottom: .8rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  .hint { font-size: .75rem; color: var(--muted); font-weight: 400; }
+
+  /* --- Formular --- */
+  .group-title {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin: .9rem 0 .45rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: .25rem;
+  }
+  .group-title:first-of-type { margin-top: 0; }
+
+  .field { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: .5rem; margin-bottom: .55rem; }
+  .field label { font-size: .85rem; }
+  .code { color: var(--muted); font-size: .72rem; font-family: Consolas, monospace; }
+  input[type=number], select {
+    padding: .4rem .55rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: .9rem;
+    width: 100%;
+    background: #fff;
+  }
+  input[type=number] { text-align: right; }
+  input:focus, select:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  input.invalid { border-color: var(--err); outline-color: var(--err); }
+
+  .driver { margin-bottom: .55rem; }
+  .driver-top { display: grid; grid-template-columns: 1fr 110px 52px; align-items: center; gap: .5rem; }
+  .driver-top label { font-size: .85rem; }
+  .smc-toggle {
+    font-size: .62rem;
+    padding: .3rem .2rem;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+  .smc-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+  .driver.classified .smc-toggle { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .driver.classified .driver-top input.simple { visibility: hidden; }
+  .smc-row {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .4rem;
+    margin-top: .3rem;
+    padding: .45rem .5rem;
+    background: var(--accent-soft);
+    border-radius: 6px;
+  }
+  .driver.classified .smc-row { display: grid; }
+  .smc-row label { display: flex; align-items: center; gap: .35rem; font-size: .7rem; color: var(--muted); font-weight: 700; }
+  .smc-row input { padding: .28rem .4rem; font-size: .82rem; }
+
+  .errors { color: var(--err); font-size: .8rem; margin-top: .5rem; list-style: none; }
+  .errors li { margin-bottom: .15rem; }
+  .errors .code { color: var(--err); opacity: .7; }
+
+  .btn {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: .5rem .9rem;
+    font-size: .82rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn:hover { background: var(--navy-light); }
+  .btn.secondary { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: var(--accent-soft); }
+  .btn-row { display: flex; gap: .5rem; margin-top: .9rem; flex-wrap: wrap; }
+
+  details summary { cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--navy); }
+  details textarea {
+    width: 100%;
+    margin-top: .7rem;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: .74rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .6rem;
+    resize: vertical;
+  }
+  #calibJson { height: 300px; }
+  #inputJson { height: 180px; }
+  .panel-msg { font-size: .78rem; margin-top: .4rem; }
+  .panel-msg.ok { color: var(--ok); }
+  .panel-msg.err { color: var(--err); }
+
+  /* --- Ergebnis --- */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .9rem; }
+  .kpi {
+    background: var(--accent-soft);
+    border: 1px solid #c8e2e4;
+    border-radius: 10px;
+    padding: .85rem 1rem;
+  }
+  .kpi.total { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .kpi .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; opacity: .75; }
+  .kpi .value { font-size: 1.55rem; font-weight: 700; margin-top: .15rem; }
+  .kpi .unit { font-size: .8rem; font-weight: 400; opacity: .7; }
+  .meta-line { font-size: .76rem; color: var(--muted); margin-top: .7rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th, td { padding: .45rem .5rem; text-align: right; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  tr.sum td { font-weight: 700; border-top: 2px solid var(--navy); }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .formula { color: var(--muted); font-size: .74rem; font-family: Consolas, monospace; }
+
+  .scope p { font-size: .88rem; margin-bottom: .8rem; }
+  .scope h3 { font-size: .8rem; color: var(--navy); text-transform: uppercase; letter-spacing: .05em; margin: .9rem 0 .35rem; }
+  .scope ul { font-size: .84rem; margin-left: 1.2rem; }
+  .scope li { margin-bottom: .15rem; }
+
+  pre.json {
+    background: #0d1b2a;
+    color: #cfe3f5;
+    border-radius: 8px;
+    padding: .9rem;
+    font-size: .72rem;
+    overflow-x: auto;
+    max-height: 440px;
+    font-family: Consolas, "Courier New", monospace;
+  }
+  footer {
+    text-align: center;
+    font-size: .74rem;
+    color: var(--muted);
+    padding: 1rem 0 2rem;
+  }
+
+  /* --- Responsive: Tablet --- */
+  @media (max-width: 640px) {
+    header { padding: .85rem .8rem; }
+    header h1 { font-size: 1rem; }
+    header .sub { font-size: .72rem; }
+    main { padding: .9rem .75rem; gap: .9rem; }
+    .card { padding: .9rem .85rem; margin-bottom: .9rem; border-radius: 8px; }
+    .kpi-row { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .6rem; }
+    .kpi { padding: .7rem .8rem; }
+    .kpi .value { font-size: 1.25rem; }
+    .btn-row .btn { flex: 1 1 auto; text-align: center; }
+    table { font-size: .78rem; }
+    th, td { padding: .4rem .4rem; }
+    pre.json { font-size: .66rem; padding: .7rem; }
+    #calibJson { height: 240px; }
+  }
+
+  /* --- Responsive: Smartphone --- */
+  @media (max-width: 480px) {
+    .field { grid-template-columns: 1fr; gap: .25rem; margin-bottom: .7rem; }
+    .driver-top {
+      grid-template-columns: 1fr 52px;
+      grid-template-areas:
+        "label label"
+        "input toggle";
+      row-gap: .25rem;
+    }
+    .driver-top label { grid-area: label; }
+    .driver-top input.simple { grid-area: input; }
+    .driver-top .smc-toggle { grid-area: toggle; }
+    .driver { margin-bottom: .7rem; }
+    .smc-row { grid-template-columns: 1fr; gap: .3rem; }
+    .smc-row label { justify-content: space-between; }
+    .smc-row input { max-width: 60%; }
+    .kpi-row { grid-template-columns: 1fr; }
+    .kpi.total .value { font-size: 1.5rem; }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ReqPOOL Software Estimation Manager</h1>
+    <div class="sub">Intent-Spezifikation v2.0 &middot; Einheit: PT (1 PT = 8 h) &middot; UI-MVP</div>
+  </div>
+  <div id="testBadge" class="badge">Testfälle laufen …</div>
+</header>
+
+<main>
+  <!-- ==================== EINGABE ==================== -->
+  <div>
+    <div class="card">
+      <h2>Eingabeparameter</h2>
+
+      <div class="group-title">Size Driver (additiv) — <span style="text-transform:none">S·M·C = Komplexitätsklassen erfassen</span></div>
+      <div id="driverForm"></div>
+
+      <div class="group-title">Modifikatoren (multiplikativ)</div>
+      <div class="field"><label>Sprachen <span class="code">languages</span></label><input type="number" id="languages" min="1" step="1" value="3"></div>
+      <div class="field"><label>Benutzerrollen <span class="code">roles</span></label><input type="number" id="roles" min="1" step="1" value="6"></div>
+      <div class="field"><label>Nutzeranzahl <span class="code">users</span></label><input type="number" id="users" min="0" step="1" value="2000"></div>
+
+      <div class="group-title">Kontextparameter</div>
+      <div class="field">
+        <label>Risikoprofil <span class="code">riskLevel</span></label>
+        <select id="riskLevel">
+          <option value="low">low</option>
+          <option value="medium" selected>medium</option>
+          <option value="high">high</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Sprache der Scope-Texte <span class="code">outputLanguage</span></label>
+        <select id="outputLanguage">
+          <option value="de" selected>Deutsch</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <ul class="errors" id="errors"></ul>
+
+      <div class="btn-row">
+        <button class="btn secondary" id="btnT71">Testfall 7.1 laden</button>
+        <button class="btn secondary" id="btnT72">Testfall 7.2 laden</button>
+        <button class="btn secondary" id="btnReset">Eingaben leeren</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Eingabe als JSON (Kontrakt, Abschnitt 5)</summary>
+        <p class="hint" style="margin-top:.5rem">Eingabe-JSON einfügen und übernehmen. Bei Validierungsfehlern wird der Fehlerkontrakt in der JSON-Ausgabe angezeigt.</p>
+        <textarea id="inputJson" spellcheck="false"></textarea>
+        <div class="panel-msg" id="inputMsg"></div>
+        <div class="btn-row">
+          <button class="btn" id="btnApplyInput">Übernehmen &amp; berechnen</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Kalibrierung (extern, versioniert, editierbar)</summary>
+        <p class="hint" style="margin-top:.5rem">Alle Treiber, Faktoren, Aufschläge, Caps und der Sockelaufwand stammen aus dieser Kalibrierung — im Berechnungskern sind keine Schätzwerte fest verdrahtet. Die Kalibrierung wird beim Übernehmen gegen das Schema (Abschnitt 4.1) validiert; bei Verletzung wird keine Schätzung ausgegeben.</p>
+        <textarea id="calibJson" spellcheck="false"></textarea>
+        <div class="panel-msg" id="calibMsg"></div>
+        <div class="btn-row">
+          <button class="btn" id="btnApplyCalib">Kalibrierung übernehmen</button>
+          <button class="btn secondary" id="btnResetCalib">Auf Defaults zurücksetzen</button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ==================== ERGEBNIS ==================== -->
+  <div>
+    <div class="card">
+      <h2>Schätzergebnis</h2>
+      <div class="kpi-row">
+        <div class="kpi total">
+          <div class="label">Gesamtaufwand (gerundet)</div>
+          <div class="value"><span id="kpiTotal">–</span> <span class="unit">PT</span></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Bandbreite low</div>
+          <div class="value"><span id="kpiLow">–</span> <span class="unit">PT</span></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Bandbreite high</div>
+          <div class="value"><span id="kpiHigh">–</span> <span class="unit">PT</span></div>
+        </div>
+      </div>
+      <div class="meta-line" id="metaLine"></div>
+    </div>
+
+    <div class="card">
+      <h2>Rechenweg <span class="hint">jede Zahl = Eingabe × Kalibrierwert · Zwischenwerte ungerundet weitergerechnet</span></h2>
+      <div class="table-wrap"><table id="driverTable">
+        <thead><tr><th>Size Driver</th><th>Anzahl</th><th>Rate</th><th>E[d] roh</th><th>Modifikatoren</th><th>Angepasst (PT)</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+
+      <div class="table-wrap" style="margin-top:1rem"><table id="stepTable"><tbody></tbody></table></div>
+
+      <div class="table-wrap" style="margin-top:1rem"><table id="phaseTable">
+        <thead><tr><th>Phasenaufschlag</th><th>Satz</th><th>PT</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="card scope">
+      <h2 id="scopeTitle">Scope-Beschreibung</h2>
+      <p id="scopeSummary"></p>
+      <div class="table-wrap"><table id="breakdownTable">
+        <thead><tr><th id="hBdDriver">Treiber</th><th id="hBdCount">Anzahl</th><th id="hBdClasses">Klassenverteilung</th><th>PT</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <h3 id="hInScope">In Scope</h3>
+      <ul id="scopeInScope"></ul>
+      <h3 id="hAssumptions">Annahmen</h3>
+      <ul id="scopeAssumptions"></ul>
+      <h3 id="hExclusions">Ausschlüsse</h3>
+      <ul id="scopeExclusions"></ul>
+    </div>
+
+    <div class="card">
+      <h2>JSON-Ausgabe <button class="btn secondary" id="btnCopy" style="font-size:.72rem">In Zwischenablage kopieren</button></h2>
+      <pre class="json" id="jsonOut"></pre>
+    </div>
+  </div>
+</main>
+
+<footer>ReqPOOL Software Estimation Manager · UI-MVP zu Spezifikation v2.0 · Kalibrierwerte sind Startwerte und vor Produktiveinsatz mit historischen Projektdaten zu kalibrieren.</footer>
+
+<script>
+"use strict";
+
+const SPEC_VERSION = "2.0";
+
+/* =====================================================================
+ * Kalibrierung – Default-Startwerte (Spezifikation, Abschnitt 4/4.1).
+ * Der Berechnungskern liest ausschließlich aus dieser Struktur.
+ * ===================================================================== */
+const DEFAULT_CONFIG = {
+  version: "2.0.0",
+  baseEffort: 0,
+  drivers: {
+    pages:           { rate: 2.0 },
+    useCases:        { rate: 3.0 },
+    businessObjects: { rate: 1.5 },
+    interfaces:      { rate: 5.0 },
+    batches:         { rate: 3.0 }
+  },
+  complexityClasses: { simple: 0.7, medium: 1.0, complex: 1.5 },
+  modifiers: {
+    language: { increment: 0.08, cap: 1.6, appliesTo: ["pages", "useCases"] },
+    role:     { increment: 0.05, cap: 1.5, appliesTo: ["pages", "useCases"] },
+    scale: {
+      appliesTo: "total",
+      tiers: [
+        { maxUsers: 50,    factor: 1.00 },
+        { maxUsers: 500,   factor: 1.05 },
+        { maxUsers: 5000,  factor: 1.10 },
+        { maxUsers: 50000, factor: 1.20 },
+        { maxUsers: null,  factor: 1.30 }
+      ]
+    }
+  },
+  phases: {
+    requirements:      0.15,
+    design:            0.10,
+    test:              0.20,
+    deployment:        0.08,
+    projectManagement: 0.15,
+    documentation:     0.05
+  },
+  risk: { low: 0.10, medium: 0.15, high: 0.25 },
+  range: { low: -0.20, high: 0.30 },
+  rounding: { mode: "half-up", totalsDecimals: 0, intermediateDecimals: 2 }
+};
+
+/* =====================================================================
+ * Rundung (Spezifikation, Abschnitt 3, verbindlich):
+ * kaufmännisch (half up); Zwischenwerte ungerundet weiterrechnen,
+ * Rundung nur bei Ausweisung. Math.round rundet für positive Werte
+ * half up — konform.
+ * ===================================================================== */
+const round2 = (x) => Math.round(x * 100) / 100;
+const round0 = (x) => Math.round(x);
+
+/* =====================================================================
+ * Kalibrierungs-Validierung (Schema 4.1: Stufen aufsteigend,
+ * letzte Stufe null, Caps ≥ 1). Bei Verletzung keine Schätzung.
+ * ===================================================================== */
+function validateCalibration(cfg) {
+  const errors = [];
+  const push = (path, message) => errors.push({ path, code: "CALIBRATION_INVALID", message });
+
+  if (typeof cfg !== "object" || cfg === null) { push("", "calibration must be an object"); return errors; }
+  if (typeof cfg.version !== "string" || !cfg.version) push("version", "version (string) is required");
+  if (typeof cfg.baseEffort !== "number" || cfg.baseEffort < 0) push("baseEffort", "baseEffort must be a number >= 0");
+
+  if (!cfg.drivers || typeof cfg.drivers !== "object" || !Object.keys(cfg.drivers).length) {
+    push("drivers", "at least one driver is required");
+  } else {
+    for (const [d, v] of Object.entries(cfg.drivers)) {
+      if (typeof v?.rate !== "number" || v.rate < 0) push(`drivers.${d}.rate`, "rate must be a number >= 0");
+    }
+  }
+
+  if (!cfg.complexityClasses || typeof cfg.complexityClasses !== "object" || !Object.keys(cfg.complexityClasses).length) {
+    push("complexityClasses", "complexityClasses are required");
+  } else {
+    for (const [k, f] of Object.entries(cfg.complexityClasses)) {
+      if (typeof f !== "number" || f <= 0) push(`complexityClasses.${k}`, "classFactor must be a number > 0");
+    }
+    if (!("medium" in cfg.complexityClasses)) push("complexityClasses.medium", 'class "medium" is required (applies to simple counts)');
+  }
+
+  const mods = cfg.modifiers ?? {};
+  for (const m of ["language", "role"]) {
+    const mod = mods[m];
+    if (!mod) { push(`modifiers.${m}`, `modifier "${m}" is required`); continue; }
+    if (typeof mod.increment !== "number" || mod.increment < 0) push(`modifiers.${m}.increment`, "increment must be a number >= 0");
+    if (typeof mod.cap !== "number" || mod.cap < 1) push(`modifiers.${m}.cap`, "cap must be a number >= 1");
+    if (!Array.isArray(mod.appliesTo)) push(`modifiers.${m}.appliesTo`, "appliesTo must be an array of driver names");
+    else for (const d of mod.appliesTo) if (!cfg.drivers?.[d]) push(`modifiers.${m}.appliesTo`, `unknown driver "${d}"`);
+  }
+  const scale = mods.scale;
+  if (!scale || !Array.isArray(scale.tiers) || !scale.tiers.length) {
+    push("modifiers.scale.tiers", "scale.tiers must be a non-empty array");
+  } else {
+    let prev = -Infinity;
+    scale.tiers.forEach((t, i) => {
+      const isLast = i === scale.tiers.length - 1;
+      if (typeof t.factor !== "number" || t.factor <= 0) push(`modifiers.scale.tiers[${i}].factor`, "factor must be a number > 0");
+      if (isLast) {
+        if (t.maxUsers !== null) push(`modifiers.scale.tiers[${i}].maxUsers`, "last tier must have maxUsers = null (unlimited)");
+      } else if (!Number.isInteger(t.maxUsers) || t.maxUsers <= prev) {
+        push(`modifiers.scale.tiers[${i}].maxUsers`, "tier boundaries must be ascending integers");
+      } else {
+        prev = t.maxUsers;
+      }
+    });
+  }
+
+  if (!cfg.phases || typeof cfg.phases !== "object" || !Object.keys(cfg.phases).length) push("phases", "phases are required");
+  else for (const [p, v] of Object.entries(cfg.phases)) if (typeof v !== "number" || v < 0) push(`phases.${p}`, "phase surcharge must be a number >= 0");
+
+  if (!cfg.risk || !["low", "medium", "high"].every((k) => typeof cfg.risk[k] === "number" && cfg.risk[k] >= 0)) {
+    push("risk", "risk must define low, medium and high as numbers >= 0");
+  }
+  if (!cfg.range || typeof cfg.range.low !== "number" || typeof cfg.range.high !== "number" || cfg.range.low > cfg.range.high) {
+    push("range", "range.low and range.high must be numbers with low <= high");
+  }
+  return errors;
+}
+
+/* =====================================================================
+ * Eingabe-Validierung – Fehlerkontrakt {path, code, message},
+ * keine stillen Defaults; unbekannte Schlüssel/Klassen → Fehler.
+ * Liefert bei Erfolg das Echo der validierten Eingabe inkl. Defaults.
+ * ===================================================================== */
+function validateInput(input, config) {
+  const errors = [];
+  const push = (path, code, message) => errors.push({ path, code, message });
+  const isInt = (v) => typeof v === "number" && Number.isInteger(v);
+
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    push("", "TYPE_ERROR", "input must be an object");
+    return { errors };
+  }
+
+  const outputLanguage = input.outputLanguage ?? "de";
+  if (outputLanguage !== "de" && outputLanguage !== "en") {
+    push("outputLanguage", "INVALID_VALUE", 'outputLanguage must be "de" or "en"');
+  }
+  const riskLevel = input.riskLevel ?? "medium";
+  if (!(riskLevel in config.risk)) {
+    push("riskLevel", "INVALID_VALUE", `riskLevel must be one of: ${Object.keys(config.risk).join(", ")}`);
+  }
+
+  const params = input.parameters;
+  if (typeof params !== "object" || params === null || Array.isArray(params)) {
+    push("parameters", "TYPE_ERROR", "parameters must be an object");
+    return { errors };
+  }
+
+  const driverKeys = Object.keys(config.drivers);
+  const classKeys = Object.keys(config.complexityClasses);
+  const known = new Set([...driverKeys, "languages", "roles", "users"]);
+  for (const k of Object.keys(params)) {
+    if (!known.has(k)) push(`parameters.${k}`, "UNKNOWN_PARAMETER", `unknown parameter "${k}"`);
+  }
+
+  const echoParams = {};
+
+  for (const d of driverKeys) {
+    const v = params[d];
+    if (v === undefined) {
+      push(`parameters.${d}`, "MISSING_PARAMETER", `${d} is required (use 0 if not applicable)`);
+    } else if (isInt(v)) {
+      if (v < 0) push(`parameters.${d}`, "MIN_VALUE", `${d} must be >= 0`);
+      else echoParams[d] = v;
+    } else if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+      let ok = true;
+      for (const k of Object.keys(v)) {
+        if (!classKeys.includes(k)) { push(`parameters.${d}.${k}`, "UNKNOWN_CLASS", `unknown complexity class "${k}"`); ok = false; }
+      }
+      const counts = {};
+      for (const k of classKeys) {
+        const cv = v[k] ?? 0; // fehlende Klassen-Schlüssel = 0
+        if (!isInt(cv)) { push(`parameters.${d}.${k}`, "TYPE_ERROR", `${d}.${k} must be an integer`); ok = false; }
+        else if (cv < 0) { push(`parameters.${d}.${k}`, "MIN_VALUE", `${d}.${k} must be >= 0`); ok = false; }
+        else counts[k] = cv;
+      }
+      if (ok) echoParams[d] = counts;
+    } else {
+      push(`parameters.${d}`, "TYPE_ERROR", `${d} must be an integer >= 0 or an object with complexity classes`);
+    }
+  }
+
+  for (const [k, min] of [["languages", 1], ["roles", 1], ["users", 0]]) {
+    const v = params[k];
+    if (v === undefined) push(`parameters.${k}`, "MISSING_PARAMETER", `${k} is required`);
+    else if (!isInt(v)) push(`parameters.${k}`, "TYPE_ERROR", `${k} must be an integer`);
+    else if (v < min) push(`parameters.${k}`, "MIN_VALUE", `${k} must be >= ${min}`);
+    else echoParams[k] = v;
+  }
+
+  if (errors.length) return { errors };
+  return { echo: { outputLanguage, riskLevel, parameters: echoParams } };
+}
+
+/* =====================================================================
+ * Berechnungskern – deterministisch, seiteneffektfrei:
+ * estimate(input, config) -> output  (Spezifikation, Abschnitte 3, 5)
+ * ===================================================================== */
+function scaleFactor(users, tiers) {
+  for (const tier of tiers) {
+    if (tier.maxUsers === null || users <= tier.maxUsers) return tier.factor;
+  }
+  return tiers[tiers.length - 1].factor;
+}
+
+function estimateDetailed(input, config) {
+  const calibErrors = validateCalibration(config);
+  if (calibErrors.length) return { output: { errors: calibErrors } };
+
+  const validated = validateInput(input, config);
+  if (validated.errors) return { output: { errors: validated.errors } };
+  const echo = validated.echo;
+  const p = echo.parameters;
+
+  // Modifikator-Faktoren (mit Caps)
+  const fLanguage = Math.min(1 + (p.languages - 1) * config.modifiers.language.increment, config.modifiers.language.cap);
+  const fRole     = Math.min(1 + (p.roles - 1)     * config.modifiers.role.increment,     config.modifiers.role.cap);
+  const fScale    = scaleFactor(p.users, config.modifiers.scale.tiers);
+  const driverFactors = { language: fLanguage, role: fRole };
+
+  // E[d]: einfache Form = Klasse medium; klassifiziert = Σ count[k] × rate × classFactor[k]
+  const driverEfforts = {};
+  const trace = [];
+  let sumAdjusted = 0;
+  for (const [d, cal] of Object.entries(config.drivers)) {
+    const val = p[d];
+    let raw, counts = null, totalCount;
+    if (typeof val === "number") {
+      totalCount = val;
+      raw = val * cal.rate * config.complexityClasses.medium;
+    } else {
+      counts = val;
+      totalCount = Object.values(val).reduce((a, b) => a + b, 0);
+      raw = 0;
+      for (const [k, f] of Object.entries(config.complexityClasses)) raw += (val[k] ?? 0) * cal.rate * f;
+    }
+    const applied = [];
+    let adjusted = raw;
+    for (const [m, f] of Object.entries(driverFactors)) {
+      if (config.modifiers[m].appliesTo.includes(d)) { adjusted *= f; applied.push(m); }
+    }
+    sumAdjusted += adjusted;
+    driverEfforts[d] = { raw: round2(raw), adjusted: round2(adjusted) };
+    trace.push({ driver: d, counts, totalCount, rate: cal.rate, raw, applied, adjusted });
+  }
+
+  const realizationCore = config.baseEffort + sumAdjusted;
+  const realization = realizationCore * fScale; // scale.appliesTo = "total"
+
+  const phases = {};
+  let phaseSum = 0;
+  for (const [name, rate] of Object.entries(config.phases)) {
+    phases[name] = round2(realization * rate);
+    phaseSum += rate;
+  }
+  const subtotal = realization * (1 + phaseSum);
+  const riskRate = config.risk[echo.riskLevel];
+  const total = subtotal * (1 + riskRate);
+
+  // low/totalRounded/high aus dem UNGERUNDETEN Total, half up auf ganze PT
+  const totalRounded = round0(total);
+  const range = {
+    low: round0(total * (1 + config.range.low)),
+    expected: totalRounded,
+    high: round0(total * (1 + config.range.high))
+  };
+
+  const output = {
+    meta: { specVersion: SPEC_VERSION, calibrationVersion: config.version, input: echo },
+    estimate: {
+      unit: "PT",
+      baseEffort: round2(config.baseEffort),
+      driverEfforts,
+      appliedModifiers: { language: round2(fLanguage), role: round2(fRole), scale: round2(fScale) },
+      realizationCore: round2(realizationCore),
+      realization: round2(realization),
+      phases,
+      subtotal: round2(subtotal),
+      riskLevel: echo.riskLevel,
+      riskContingency: round2(total - subtotal),
+      total: round2(total),
+      totalRounded,
+      range
+    },
+    scope: buildScope(echo, trace, config)
+  };
+  return { output, trace, phaseSum, riskRate };
+}
+
+const estimate = (input, config) => estimateDetailed(input, config).output;
+
+/* =====================================================================
+ * Scope-Generator – regelbasiert, DE/EN (Spezifikation, Abschnitt 6)
+ * ===================================================================== */
+const SCOPE_TEXTS = {
+  de: {
+    summary: (t) => `Die Anwendung umfasst ${t.pages} Oberflächen in ${t.languages} Sprache(n), realisiert ${t.useCases} Use Cases auf ${t.businessObjects} Geschäftsobjekten, bindet ${t.interfaces} Schnittstelle(n) an, stellt ${t.batches} Batch-Verarbeitung(en) bereit und ist rollenbasiert für ${t.roles} Rolle(n) sowie ${t.users} Nutzer ausgelegt.`,
+    inScope: {
+      pages:           (n) => `Konzeption und Umsetzung von ${n} UI-Oberflächen/Seiten`,
+      useCases:        (n) => `Realisierung von ${n} fachlichen Use Cases inkl. Geschäftslogik`,
+      businessObjects: (n) => `Datenmodell und Persistenz für ${n} Geschäftsobjekte`,
+      interfaces:      (n) => `Anbindung von ${n} externen Schnittstellen/Integrationen`,
+      batches:         (n) => `Umsetzung von ${n} Batch-/Hintergrundverarbeitungen`,
+      languages:       (n) => `Lokalisierung der Anwendung in ${n} Sprache(n)`,
+      roles:           (n) => `Rollen- und Berechtigungskonzept für ${n} Benutzerrollen`,
+      users:           (n) => `Auslegung für bis zu ${n} Nutzer`
+    },
+    assumptions: {
+      calibration: (v) => `Aufwände basieren auf Kalibrierung v${v} (Startwerte, vor Produktiveinsatz zu kalibrieren).`,
+      risk:        (level, pct) => `Risikoreserve gemäß Risikoprofil „${level}“ (${pct}).`,
+      classes:     `Nicht klassifizierte Treiber-Anzahlen werden als Komplexitätsklasse „medium“ angesetzt.`,
+      phases:      `Phasenaufschläge decken Requirements, Design, Test, Deployment, Projektmanagement und Dokumentation ab.`,
+      range:       `Die Bandbreite (low/high) bildet Schätzunsicherheit ab; die Risikoreserve ist im Total enthalten.`,
+      baseEffort:  (x) => `Sockelaufwand von ${x} PT (Projektsetup, CI/CD, Basis-Deployment) ist enthalten.`,
+      noDrivers:   `Es wurden keine Größentreiber erfasst; die Schätzung basiert ausschließlich auf dem Sockelaufwand.`
+    },
+    exclusions: [
+      "Betrieb/Hosting & Infrastruktur",
+      "Lizenz-/Drittsoftware",
+      "Fachliche Datenmigration (falls nicht als Schnittstelle/Batch modelliert)",
+      "Hardware",
+      "Schulung über die Dokumentation hinaus",
+      "Wartung nach Go-Live"
+    ],
+    driverLabels: {
+      pages: "Oberflächen/Seiten", useCases: "Use Cases", businessObjects: "Geschäftsobjekte",
+      interfaces: "Schnittstellen", batches: "Batch-Verarbeitungen"
+    }
+  },
+  en: {
+    summary: (t) => `The application comprises ${t.pages} user interface pages in ${t.languages} language(s), implements ${t.useCases} use cases on ${t.businessObjects} business objects, connects ${t.interfaces} external interface(s), provides ${t.batches} batch process(es), and is role-based for ${t.roles} role(s) and designed for ${t.users} users.`,
+    inScope: {
+      pages:           (n) => `Design and implementation of ${n} UI pages/screens`,
+      useCases:        (n) => `Implementation of ${n} functional use cases including business logic`,
+      businessObjects: (n) => `Data model and persistence for ${n} business objects`,
+      interfaces:      (n) => `Integration of ${n} external interfaces`,
+      batches:         (n) => `Implementation of ${n} batch/background processes`,
+      languages:       (n) => `Localization of the application in ${n} language(s)`,
+      roles:           (n) => `Role and permission concept for ${n} user roles`,
+      users:           (n) => `Designed for up to ${n} users`
+    },
+    assumptions: {
+      calibration: (v) => `Efforts are based on calibration v${v} (default values; to be calibrated before productive use).`,
+      risk:        (level, pct) => `Risk contingency according to risk profile "${level}" (${pct}).`,
+      classes:     `Unclassified driver counts are treated as complexity class "medium".`,
+      phases:      `Phase surcharges cover requirements, design, test, deployment, project management and documentation.`,
+      range:       `The range (low/high) reflects estimation uncertainty; the risk contingency is included in the total.`,
+      baseEffort:  (x) => `A base effort of ${x} PT (project setup, CI/CD, basic deployment) is included.`,
+      noDrivers:   `No size drivers were captured; the estimate is based solely on the base effort.`
+    },
+    exclusions: [
+      "Operations/hosting & infrastructure",
+      "Licenses/third-party software",
+      "Business data migration (unless modeled as interface/batch)",
+      "Hardware",
+      "Training beyond documentation",
+      "Maintenance after go-live"
+    ],
+    driverLabels: {
+      pages: "UI pages", useCases: "Use cases", businessObjects: "Business objects",
+      interfaces: "Interfaces", batches: "Batch processes"
+    }
+  }
+};
+
+function buildScope(echo, trace, config) {
+  const t = SCOPE_TEXTS[echo.outputLanguage];
+  const p = echo.parameters;
+
+  // Gesamtsummen (bei klassifizierten Counts: Summe der Klassen)
+  const totals = { languages: p.languages, roles: p.roles, users: p.users };
+  for (const tr of trace) totals[tr.driver] = tr.totalCount;
+
+  const breakdown = trace
+    .filter((tr) => tr.totalCount > 0)
+    .map((tr) => ({
+      driver: tr.driver,
+      label: t.driverLabels[tr.driver] ?? tr.driver,
+      count: tr.totalCount,
+      ...(tr.counts ? { classes: tr.counts } : {}),
+      effort: round2(tr.adjusted),
+      unit: "PT"
+    }));
+
+  const inScope = [];
+  for (const [key, fn] of Object.entries(t.inScope)) {
+    const v = totals[key];
+    const minRelevant = (key === "languages" || key === "roles") ? 2 : 1;
+    if (v >= minRelevant) inScope.push(fn(v));
+  }
+
+  const riskPct = (config.risk[echo.riskLevel] * 100).toLocaleString(echo.outputLanguage === "de" ? "de-AT" : "en-US", { maximumFractionDigits: 1 }) + " %";
+  const assumptions = [
+    t.assumptions.calibration(config.version),
+    t.assumptions.risk(echo.riskLevel, riskPct),
+    t.assumptions.classes,
+    t.assumptions.phases,
+    t.assumptions.range
+  ];
+  if (config.baseEffort > 0) assumptions.push(t.assumptions.baseEffort(round2(config.baseEffort)));
+  const noDrivers = trace.every((tr) => tr.totalCount === 0);
+  if (noDrivers) assumptions.push(t.assumptions.noDrivers);
+
+  return {
+    summary: t.summary(totals),
+    breakdown,
+    inScope,
+    assumptions,
+    exclusions: [...t.exclusions]
+  };
+}
+
+/* =====================================================================
+ * Testfälle 7.1–7.5 (verbindliche Abnahmeanker) – automatisiert
+ * ===================================================================== */
+function runAcceptanceTests() {
+  const results = [];
+  const t = (name, cond) => results.push({ name, pass: !!cond });
+
+  // 7.1 Goldener Testfall (Rundung korrigiert: 431/538/700)
+  {
+    const r = estimate({
+      outputLanguage: "de",
+      parameters: { pages: 20, useCases: 30, businessObjects: 15, interfaces: 4, batches: 5, languages: 3, roles: 6, users: 2000 }
+    }, DEFAULT_CONFIG);
+    const e = r.estimate ?? {};
+    t("7.1", !r.errors
+      && e.appliedModifiers?.language === 1.16 && e.appliedModifiers?.role === 1.25 && e.appliedModifiers?.scale === 1.1
+      && e.driverEfforts?.pages.adjusted === 58 && e.driverEfforts?.useCases.adjusted === 130.5
+      && e.driverEfforts?.businessObjects.adjusted === 22.5 && e.driverEfforts?.interfaces.adjusted === 20
+      && e.driverEfforts?.batches.adjusted === 15
+      && e.realizationCore === 246 && e.realization === 270.6 && e.subtotal === 468.14
+      && e.riskLevel === "medium" && e.riskContingency === 70.22
+      && e.total === 538.36 && e.totalRounded === 538
+      && e.range?.low === 431 && e.range?.expected === 538 && e.range?.high === 700
+      && r.meta?.calibrationVersion === DEFAULT_CONFIG.version);
+  }
+  // 7.2 Komplexitätsklassen
+  {
+    const r = estimate({
+      parameters: { pages: { simple: 5, medium: 10, complex: 5 }, useCases: 0, businessObjects: 0, interfaces: 0, batches: 0, languages: 1, roles: 1, users: 0 }
+    }, DEFAULT_CONFIG);
+    const e = r.estimate ?? {};
+    t("7.2", !r.errors
+      && e.driverEfforts?.pages.raw === 42 && e.total === 83.56 && e.totalRounded === 84
+      && e.range?.low === 67 && e.range?.high === 109);
+  }
+  // 7.3 Cap-Wirkung: languages = 10 → ungecappt 1,72 → Cap 1,60
+  {
+    const r = estimate({
+      parameters: { pages: 20, useCases: 30, businessObjects: 15, interfaces: 4, batches: 5, languages: 10, roles: 6, users: 2000 }
+    }, DEFAULT_CONFIG);
+    t("7.3", !r.errors && r.estimate?.appliedModifiers.language === 1.6);
+  }
+  // 7.4 Stufengrenzen: users 50/51/5000/5001 → 1,00/1,05/1,10/1,20
+  {
+    const f = (users) => estimate({
+      parameters: { pages: 0, useCases: 0, businessObjects: 0, interfaces: 0, batches: 0, languages: 1, roles: 1, users }
+    }, DEFAULT_CONFIG).estimate?.appliedModifiers.scale;
+    t("7.4", f(50) === 1 && f(51) === 1.05 && f(5000) === 1.1 && f(5001) === 1.2);
+  }
+  // 7.5 Degenerierter Fall: gültige Ausgabe, Hinweis in assumptions
+  {
+    const r = estimate({
+      parameters: { pages: 0, useCases: 0, businessObjects: 0, interfaces: 0, batches: 0, languages: 1, roles: 1, users: 0 }
+    }, DEFAULT_CONFIG);
+    t("7.5", !r.errors && r.estimate?.totalRounded === 0
+      && r.scope?.assumptions.some((a) => a.includes("keine Größentreiber")));
+  }
+  return results;
+}
+
+/* =====================================================================
+ * UI-Verdrahtung
+ * ===================================================================== */
+let currentConfig = structuredClone(DEFAULT_CONFIG);
+
+const $ = (id) => document.getElementById(id);
+const fmt = (x, digits = 2) => x.toLocaleString("de-AT", { minimumFractionDigits: 0, maximumFractionDigits: digits });
+const fmtPct = (x) => (x * 100).toLocaleString("de-AT", { maximumFractionDigits: 1 }) + " %";
+
+const DRIVER_UI = [
+  { key: "pages",           label: "Oberflächen / Seiten" },
+  { key: "useCases",        label: "Use Cases" },
+  { key: "businessObjects", label: "Geschäftsobjekte" },
+  { key: "interfaces",      label: "Externe Schnittstellen" },
+  { key: "batches",         label: "Batch-Verarbeitungen" }
+];
+const PHASE_LABELS = {
+  requirements: "Requirements", design: "Design", test: "Test",
+  deployment: "Deployment", projectManagement: "Projektmanagement", documentation: "Dokumentation"
+};
+const MODIFIER_SHORT = { language: "f_language", role: "f_role" };
+const CLASS_KEYS = ["simple", "medium", "complex"];
+const DEFAULT_VALUES = { pages: 20, useCases: 30, businessObjects: 15, interfaces: 4, batches: 5 };
+
+/* --- Treiber-Formular aufbauen (einfach + klassifiziert S/M/C) --- */
+function buildDriverForm() {
+  const host = $("driverForm");
+  host.innerHTML = "";
+  for (const d of DRIVER_UI) {
+    const div = document.createElement("div");
+    div.className = "driver";
+    div.dataset.driver = d.key;
+    div.innerHTML = `
+      <div class="driver-top">
+        <label>${d.label} <span class="code">${d.key}</span></label>
+        <input type="number" class="simple" id="${d.key}" min="0" step="1" value="${DEFAULT_VALUES[d.key] ?? 0}">
+        <button type="button" class="smc-toggle" title="Komplexitätsklassen (simple / medium / complex) erfassen">S·M·C</button>
+      </div>
+      <div class="smc-row">
+        ${CLASS_KEYS.map((k) => `<label>${k[0].toUpperCase()} <input type="number" id="${d.key}_${k}" min="0" step="1" placeholder="0"></label>`).join("")}
+      </div>`;
+    host.appendChild(div);
+
+    div.querySelector(".smc-toggle").addEventListener("click", () => {
+      const classified = div.classList.toggle("classified");
+      if (classified) {
+        const v = $(d.key).value.trim();
+        if (v !== "" && $( `${d.key}_medium`).value.trim() === "") $(`${d.key}_medium`).value = v;
+      } else {
+        const sum = CLASS_KEYS.reduce((a, k) => a + (Number($(`${d.key}_${k}`).value) || 0), 0);
+        $(d.key).value = sum;
+      }
+      render();
+    });
+    div.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", render));
+  }
+}
+
+function isClassified(driver) {
+  return document.querySelector(`.driver[data-driver="${driver}"]`).classList.contains("classified");
+}
+
+function readInput() {
+  const parameters = {};
+  for (const d of DRIVER_UI) {
+    if (isClassified(d.key)) {
+      const obj = {};
+      for (const k of CLASS_KEYS) {
+        const raw = $(`${d.key}_${k}`).value.trim();
+        obj[k] = raw === "" ? 0 : Number(raw); // leeres Feld = fehlender Klassen-Schlüssel = 0
+      }
+      parameters[d.key] = obj;
+    } else {
+      const raw = $(d.key).value.trim();
+      parameters[d.key] = raw === "" ? NaN : Number(raw);
+    }
+  }
+  for (const k of ["languages", "roles", "users"]) {
+    const raw = $(k).value.trim();
+    parameters[k] = raw === "" ? NaN : Number(raw);
+  }
+  return { outputLanguage: $("outputLanguage").value, riskLevel: $("riskLevel").value, parameters };
+}
+
+function setDriverSimple(driver, value) {
+  document.querySelector(`.driver[data-driver="${driver}"]`).classList.remove("classified");
+  $(driver).value = value;
+}
+function setDriverClassified(driver, counts) {
+  document.querySelector(`.driver[data-driver="${driver}"]`).classList.add("classified");
+  for (const k of CLASS_KEYS) $(`${driver}_${k}`).value = counts[k] ?? 0;
+}
+
+/* --- Rendering --- */
+function markInvalidFields(errors) {
+  document.querySelectorAll("input.invalid").forEach((el) => el.classList.remove("invalid"));
+  for (const err of errors) {
+    const id = err.path.replace(/^parameters\./, "").replace(".", "_");
+    const el = $(id);
+    if (el && el.tagName === "INPUT") el.classList.add("invalid");
+  }
+}
+
+function clearResults() {
+  ["kpiTotal", "kpiLow", "kpiHigh"].forEach((id) => ($(id).textContent = "–"));
+  $("metaLine").textContent = "";
+  $("scopeSummary").textContent = "";
+  ["scopeInScope", "scopeAssumptions", "scopeExclusions"].forEach((id) => ($(id).innerHTML = ""));
+  ["driverTable", "phaseTable", "breakdownTable"].forEach((id) => ($(id).querySelector("tbody").innerHTML = ""));
+  $("stepTable").querySelector("tbody").innerHTML = "";
+}
+
+function renderErrors(errors) {
+  const errList = $("errors");
+  errList.innerHTML = "";
+  for (const err of errors) {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${err.path || "(input)"}</strong> — ${err.message} <span class="code">${err.code}</span>`;
+    errList.appendChild(li);
+  }
+  markInvalidFields(errors);
+}
+
+function render() {
+  const input = readInput();
+  const detailed = estimateDetailed(input, currentConfig);
+  const result = detailed.output;
+
+  if (result.errors) {
+    renderErrors(result.errors);
+    clearResults();
+    $("jsonOut").textContent = JSON.stringify({ errors: result.errors }, null, 2); // Fehlerkontrakt
+    return;
+  }
+  renderErrors([]);
+
+  const e = result.estimate;
+  const s = result.scope;
+  const de = result.meta.input.outputLanguage === "de";
+
+  // KPIs + Meta
+  $("kpiTotal").textContent = fmt(e.totalRounded, 0);
+  $("kpiLow").textContent = fmt(e.range.low, 0);
+  $("kpiHigh").textContent = fmt(e.range.high, 0);
+  $("metaLine").textContent = `Risikoprofil: ${e.riskLevel} · Spez v${result.meta.specVersion} · Kalibrierung v${result.meta.calibrationVersion} · Rundung: half-up, Bandbreite aus ungerundetem Total`;
+
+  // Treiber-Tabelle
+  const dtb = $("driverTable").querySelector("tbody");
+  dtb.innerHTML = "";
+  for (const tr of detailed.trace) {
+    const label = SCOPE_TEXTS.de.driverLabels[tr.driver] ?? tr.driver;
+    const countCell = tr.counts
+      ? `${fmt(tr.totalCount, 0)} <span class="formula">S ${tr.counts.simple ?? 0} · M ${tr.counts.medium ?? 0} · C ${tr.counts.complex ?? 0}</span>`
+      : fmt(tr.totalCount, 0);
+    const mods = tr.applied.map((m) => MODIFIER_SHORT[m] ?? m).join(" × ") || "–";
+    dtb.insertAdjacentHTML("beforeend", `<tr>
+      <td>${label} <span class="formula">${tr.driver}</span></td>
+      <td>${countCell}</td>
+      <td>${fmt(tr.rate)}</td>
+      <td>${fmt(round2(tr.raw))}</td>
+      <td>${mods}</td>
+      <td><strong>${fmt(round2(tr.adjusted))}</strong></td>
+    </tr>`);
+  }
+  dtb.insertAdjacentHTML("beforeend", `<tr>
+    <td colspan="5">Sockelaufwand <span class="formula">baseEffort</span></td>
+    <td>${fmt(e.baseEffort)}</td>
+  </tr>`);
+  dtb.insertAdjacentHTML("beforeend", `<tr class="sum">
+    <td colspan="5">RealizationCore <span class="formula">baseEffort + Σ angepasste Treiber</span></td>
+    <td>${fmt(e.realizationCore)}</td>
+  </tr>`);
+
+  // Zwischenschritte
+  $("stepTable").querySelector("tbody").innerHTML = `
+    <tr><td>Modifikatoren <span class="formula">f_language = ${fmt(e.appliedModifiers.language)} · f_role = ${fmt(e.appliedModifiers.role)} · f_scale = ${fmt(e.appliedModifiers.scale)} (Caps: ${fmt(currentConfig.modifiers.language.cap)} / ${fmt(currentConfig.modifiers.role.cap)})</span></td><td></td></tr>
+    <tr><td>Realization <span class="formula">RealizationCore × f_scale</span></td><td><strong>${fmt(e.realization)} PT</strong></td></tr>
+    <tr><td>Subtotal <span class="formula">Realization × (1 + Σ Phasenaufschläge ${fmtPct(detailed.phaseSum)})</span></td><td><strong>${fmt(e.subtotal)} PT</strong></td></tr>
+    <tr><td>Risikoreserve <span class="formula">riskLevel „${e.riskLevel}“ = ${fmtPct(detailed.riskRate)}</span></td><td>${fmt(e.riskContingency)} PT</td></tr>
+    <tr><td>Total <span class="formula">Subtotal × (1 + Risiko)</span></td><td><strong>${fmt(e.total)} PT</strong></td></tr>
+    <tr class="sum"><td>Total gerundet <span class="formula">half up</span></td><td>${fmt(e.totalRounded, 0)} PT</td></tr>
+    <tr><td>Bandbreite <span class="formula">low / expected / high, aus ungerundetem Total</span></td><td>${fmt(e.range.low, 0)} / ${fmt(e.range.expected, 0)} / ${fmt(e.range.high, 0)} PT</td></tr>
+  `;
+
+  // Phasen-Tabelle
+  const ptb = $("phaseTable").querySelector("tbody");
+  ptb.innerHTML = "";
+  let phaseSumPT = 0;
+  for (const [name, pt] of Object.entries(e.phases)) {
+    phaseSumPT += pt;
+    ptb.insertAdjacentHTML("beforeend", `<tr>
+      <td>${PHASE_LABELS[name] ?? name}</td><td>${fmtPct(currentConfig.phases[name])}</td><td>${fmt(pt)}</td>
+    </tr>`);
+  }
+  ptb.insertAdjacentHTML("beforeend", `<tr class="sum"><td>Σ Phasen</td><td>${fmtPct(detailed.phaseSum)}</td><td>${fmt(round2(phaseSumPT))}</td></tr>`);
+
+  // Scope
+  $("scopeTitle").textContent = de ? "Scope-Beschreibung" : "Scope Description";
+  $("hInScope").textContent = "In Scope";
+  $("hAssumptions").textContent = de ? "Annahmen" : "Assumptions";
+  $("hExclusions").textContent = de ? "Ausschlüsse" : "Exclusions";
+  $("hBdDriver").textContent = de ? "Treiber" : "Driver";
+  $("hBdCount").textContent = de ? "Anzahl" : "Count";
+  $("hBdClasses").textContent = de ? "Klassenverteilung" : "Class distribution";
+  $("scopeSummary").textContent = s.summary;
+
+  const btb = $("breakdownTable").querySelector("tbody");
+  btb.innerHTML = "";
+  for (const b of s.breakdown) {
+    const classes = b.classes ? `S ${b.classes.simple ?? 0} · M ${b.classes.medium ?? 0} · C ${b.classes.complex ?? 0}` : "–";
+    btb.insertAdjacentHTML("beforeend", `<tr><td>${b.label}</td><td>${fmt(b.count, 0)}</td><td>${classes}</td><td>${fmt(b.effort)}</td></tr>`);
+  }
+
+  const fill = (id, items) => {
+    const ul = $(id);
+    ul.innerHTML = "";
+    for (const item of items) {
+      const li = document.createElement("li");
+      li.textContent = item;
+      ul.appendChild(li);
+    }
+  };
+  fill("scopeInScope", s.inScope);
+  fill("scopeAssumptions", s.assumptions);
+  fill("scopeExclusions", s.exclusions);
+
+  // JSON-Ausgabe (Kontrakt, Abschnitt 5, inkl. meta + Eingabe-Echo)
+  $("jsonOut").textContent = JSON.stringify(result, null, 2);
+}
+
+/* --- Events --- */
+["languages", "roles", "users"].forEach((id) => $(id).addEventListener("input", render));
+["outputLanguage", "riskLevel"].forEach((id) => $(id).addEventListener("change", render));
+
+$("btnT71").addEventListener("click", () => {
+  for (const [k, v] of Object.entries(DEFAULT_VALUES)) setDriverSimple(k, v);
+  $("languages").value = 3; $("roles").value = 6; $("users").value = 2000;
+  $("riskLevel").value = "medium"; $("outputLanguage").value = "de";
+  render();
+});
+
+$("btnT72").addEventListener("click", () => {
+  setDriverClassified("pages", { simple: 5, medium: 10, complex: 5 });
+  for (const k of ["useCases", "businessObjects", "interfaces", "batches"]) setDriverSimple(k, 0);
+  $("languages").value = 1; $("roles").value = 1; $("users").value = 0;
+  $("riskLevel").value = "medium"; $("outputLanguage").value = "de";
+  render();
+});
+
+$("btnReset").addEventListener("click", () => {
+  for (const d of DRIVER_UI) setDriverSimple(d.key, 0);
+  $("languages").value = 1; $("roles").value = 1; $("users").value = 0;
+  $("riskLevel").value = "medium";
+  render();
+});
+
+$("btnApplyInput").addEventListener("click", () => {
+  const msg = $("inputMsg");
+  let parsed;
+  try {
+    parsed = JSON.parse($("inputJson").value);
+  } catch (ex) {
+    msg.textContent = "Ungültiges JSON: " + ex.message;
+    msg.className = "panel-msg err";
+    return;
+  }
+  const r = estimate(parsed, currentConfig);
+  if (r.errors) {
+    msg.textContent = "Eingabe nicht übernommen — Validierungsfehler, Fehlerkontrakt siehe JSON-Ausgabe.";
+    msg.className = "panel-msg err";
+    renderErrors(r.errors);
+    clearResults();
+    $("jsonOut").textContent = JSON.stringify({ errors: r.errors }, null, 2);
+    return;
+  }
+  // gültig → in Formular übernehmen und rendern
+  const p = r.meta.input.parameters;
+  for (const d of DRIVER_UI) {
+    if (typeof p[d.key] === "number") setDriverSimple(d.key, p[d.key]);
+    else setDriverClassified(d.key, p[d.key]);
+  }
+  $("languages").value = p.languages; $("roles").value = p.roles; $("users").value = p.users;
+  $("riskLevel").value = r.meta.input.riskLevel;
+  $("outputLanguage").value = r.meta.input.outputLanguage;
+  msg.textContent = "Eingabe übernommen.";
+  msg.className = "panel-msg ok";
+  render();
+});
+
+$("btnApplyCalib").addEventListener("click", () => {
+  const msg = $("calibMsg");
+  let parsed;
+  try {
+    parsed = JSON.parse($("calibJson").value);
+  } catch (ex) {
+    msg.textContent = "Ungültiges JSON: " + ex.message;
+    msg.className = "panel-msg err";
+    return;
+  }
+  const calibErrors = validateCalibration(parsed);
+  if (calibErrors.length) {
+    msg.innerHTML = "Kalibrierung verletzt das Schema (4.1) — keine Schätzung möglich:<br>" +
+      calibErrors.map((e) => `• <strong>${e.path}</strong>: ${e.message}`).join("<br>");
+    msg.className = "panel-msg err";
+    currentConfig = parsed; // estimate() liefert daraufhin den Fehlerkontrakt
+    render();
+    return;
+  }
+  currentConfig = parsed;
+  msg.textContent = `Kalibrierung v${parsed.version} übernommen.`;
+  msg.className = "panel-msg ok";
+  render();
+});
+
+$("btnResetCalib").addEventListener("click", () => {
+  currentConfig = structuredClone(DEFAULT_CONFIG);
+  $("calibJson").value = JSON.stringify(DEFAULT_CONFIG, null, 2);
+  $("calibMsg").textContent = "Defaults wiederhergestellt.";
+  $("calibMsg").className = "panel-msg ok";
+  render();
+});
+
+$("btnCopy").addEventListener("click", async () => {
+  await navigator.clipboard.writeText($("jsonOut").textContent);
+  $("btnCopy").textContent = "Kopiert ✓";
+  setTimeout(() => ($("btnCopy").textContent = "In Zwischenablage kopieren"), 1500);
+});
+
+/* --- Initialisierung --- */
+buildDriverForm();
+$("calibJson").value = JSON.stringify(DEFAULT_CONFIG, null, 2);
+$("inputJson").value = JSON.stringify({
+  outputLanguage: "de",
+  riskLevel: "medium",
+  parameters: {
+    pages: 20,
+    useCases: { simple: 10, medium: 15, complex: 5 },
+    businessObjects: 15, interfaces: 4, batches: 5,
+    languages: 3, roles: 6, users: 2000
+  }
+}, null, 2);
+
+const tests = runAcceptanceTests();
+const failed = tests.filter((t) => !t.pass).map((t) => t.name);
+const badge = $("testBadge");
+badge.textContent = failed.length === 0
+  ? "Testfälle 7.1–7.5 ✓ (538 PT · 431/700)"
+  : "Testfälle ✗: " + failed.join(", ");
+badge.className = "badge " + (failed.length === 0 ? "ok" : "fail");
+
+render();
+</script>
+</body>
+</html>
